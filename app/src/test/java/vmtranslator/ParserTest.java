@@ -15,7 +15,7 @@ public class ParserTest {
     @Test
     void testParserForArithmeticCommand() {
         // create a file
-        File pathname = new File("./arth_cmd.vn");
+        File pathname = new File("./arth_cmd.vm");
         try {
             BufferedWriter writer = new BufferedWriter(new FileWriter(pathname));
             writer.write("add");
@@ -98,7 +98,7 @@ public class ParserTest {
 
     @Test
     void testEmptyLinesAreIgnored() throws Exception {
-        File pathname = new File("./withEmptyLines_cmd.vn");
+        File pathname = new File("./withEmptyLines_cmd.vm");
         try {
             BufferedWriter writer = new BufferedWriter(new FileWriter(pathname));
             writer.write("    ");
@@ -125,7 +125,7 @@ public class ParserTest {
 
     @Test
     void testLinesWithCommentsAreIgnored() throws Exception {
-        File pathname = new File("./withComments_cmd.vn");
+        File pathname = new File("./withComments_cmd.vm");
         try {
             BufferedWriter writer = new BufferedWriter(new FileWriter(pathname));
             writer.write("//This is a comment");

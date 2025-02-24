@@ -95,4 +95,57 @@ public class ParserTest {
             pathname.delete();
         }
     }
+
+    @Test
+    void testEmptyLinesAreIgnored() throws Exception {
+        File pathname = new File("./withEmptyLines_cmd.vn");
+        try {
+            BufferedWriter writer = new BufferedWriter(new FileWriter(pathname));
+            writer.write("    ");
+            writer.newLine();
+            writer.newLine();
+            writer.write("push argument 2");
+            writer.close();
+        } catch (FileAlreadyExistsException fae) {
+            System.out.println("Filealready exists");
+        }
+        catch (IOException ioe) {
+            System.out.println("Could not write to file");
+        }
+
+        Parser myParser = new Parser(pathname);
+        assertTrue(myParser.hasMoreCommands());
+        myParser.advance();
+        assertEquals(myParser.commandType(), CommandType.C_PUSH);
+        assertEquals(myParser.arg1(), "argument");
+        assertEquals(myParser.arg2(), 2);
+
+        pathname.delete();
+    }
+
+    @Test
+    void testLinesWithCommentsAreIgnored() throws Exception {
+        File pathname = new File("./withComments_cmd.vn");
+        try {
+            BufferedWriter writer = new BufferedWriter(new FileWriter(pathname));
+            writer.write("//This is a comment");
+            writer.newLine();
+            writer.write("push argument 2//comment");
+            writer.close();
+        } catch (FileAlreadyExistsException fae) {
+            System.out.println("Filealready exists");
+        }
+        catch (IOException ioe) {
+            System.out.println("Could not write to file");
+        }
+
+        Parser myParser = new Parser(pathname);
+        assertTrue(myParser.hasMoreCommands());
+        myParser.advance();
+        assertEquals(myParser.commandType(), CommandType.C_PUSH);
+        assertEquals(myParser.arg1(), "argument");
+        assertEquals(myParser.arg2(), 2);
+
+        pathname.delete();
+    }
 }

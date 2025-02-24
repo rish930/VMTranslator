@@ -12,7 +12,7 @@ public class Parser {
     BufferedReader br;
     String currCommand;
 
-    Parser(File file) throws FileNotFoundException, IOException{
+    Parser(File file) throws FileNotFoundException, IOException {
         this.br = new BufferedReader(new FileReader(file));
         this.currCommand = null;
     }
@@ -23,7 +23,10 @@ public class Parser {
 
     void advance() throws IOException {
         if (this.hasMoreCommands()) {
-            this.currCommand = this.br.readLine().trim();
+            this.currCommand = this.br.readLine().trim().split("//")[0];
+            if (this.currCommand.equals("") || this.currCommand.startsWith("//")) {
+                this.advance();
+            }
         } else {
             this.currCommand = null;
         }
@@ -41,15 +44,15 @@ public class Parser {
     }
 
     private boolean isCommandArithmetic(String command) {
-        return command == "add" || command == "sub" || 
-        command == "neg" || command == "eq" || command =="gt" || command == "lt"
-        || command == "and" || command == "or" ||command == "not";
+        return command.equals("add") || command.equals("sub") ||
+                command.equals("neg") || command.equals("eq") || command.equals("gt") || command.equals("lt")
+                || command.equals("and") || command.equals("or") || command.equals("not");
     }
 
     private boolean isCommandMemoryAccess(String command) {
-        return command == "pop" || command == "push";
+        return command.equals("pop") || command.equals("push");
     }
-    
+
     String arg1() throws InvalidCommandException {
         // returns first argument of curr command
         // returns the command itself for C_ARITHMETIC
@@ -70,26 +73,24 @@ public class Parser {
         }
     }
 
-    int arg2() throws Exception {
+    int arg2() throws InvalidCommandException {
         // returns the second argument of command
         // valid only for C_PUSH, C_POP, C_FUNCTION, C_CALL
         CommandType cmt = this.commandType();
-        if (cmt.equals(CommandType.C_POP) 
+        if (cmt.equals(CommandType.C_POP)
                 || cmt.equals(CommandType.C_PUSH)
                 || cmt.equals(CommandType.C_FUNCTION)
                 || cmt.equals(CommandType.C_CALL)) {
-                    return Integer.parseInt(this.currCommand.split(" ")[2]);
+            return Integer.parseInt(this.currCommand.split(" ")[2]);
         } else {
-            throw new Exception("CommandType:" + cmt.toString() + " does not have arg2");
+            throw new InvalidCommandException("CommandType:" + cmt.toString() + " does not have arg2");
         }
-        
+
     }
 
     void close() throws IOException {
-        if (this.br !=null) {
+        if (this.br != null) {
             this.br.close();
         }
     }
 }
-
-

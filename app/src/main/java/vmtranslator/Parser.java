@@ -9,8 +9,8 @@ import java.io.IOException;
 public class Parser {
     // parse each VM command into it's lexical elements
 
-    BufferedReader br;
-    String currCommand;
+    private BufferedReader br;
+    private String currCommand;
 
     Parser(File file) throws FileNotFoundException, IOException {
         this.br = new BufferedReader(new FileReader(file));

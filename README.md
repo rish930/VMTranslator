@@ -1,2 +1,2 @@
 # VMTranslator
-Basic Translator to convert VM code to assembly
+Basic Translator to understand conversion of VM code to assembly

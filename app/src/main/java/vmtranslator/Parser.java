@@ -38,6 +38,18 @@ public class Parser {
             return CommandType.C_ARITHMETIC;
         } else if (this.isCommandMemoryAccess(command)) {
             return CommandType.valueOf("C_" + command.toUpperCase());
+        } else if (this.isCommandLabel(command)) {
+            return CommandType.C_LABEL;
+        } else if (this.isCommandGoTo(command)) {
+            return CommandType.C_GOTO;
+        } else if (this.isCommandIfGoto(command)) {
+            return CommandType.C_IF;
+        } else if (this.isCommandFunction(command)) {
+            return CommandType.C_FUNCTION;
+        } else if (this.isCommandCall(command)) {
+            return CommandType.C_CALL;
+        } else if (this.isCommandReturn(command)) {
+            return CommandType.C_RETURN;
         } else {
             throw new InvalidCommandException("Not a valid VM command: " + command);
         }
@@ -53,6 +65,30 @@ public class Parser {
         return command.equals("pop") || command.equals("push");
     }
 
+    private boolean isCommandGoTo(String command) {
+        return command.equals("goto");
+    }
+
+    private boolean isCommandLabel(String command) {
+        return command.equals("label");
+    }
+
+    private boolean isCommandIfGoto(String command) {
+        return command.equals("if-goto");
+    }
+
+    private boolean isCommandFunction(String command) {
+        return command.equals("function");
+    }
+
+    private boolean isCommandCall(String command) {
+        return command.equals("call");
+    }
+
+    private boolean isCommandReturn(String command) {
+        return command.equals("return");
+    }
+
     String arg1() throws InvalidCommandException {
         // returns first argument of curr command
         // returns the command itself for C_ARITHMETIC
@@ -66,11 +102,19 @@ public class Parser {
         }
         if (cmt.equals(CommandType.C_ARITHMETIC)) {
             return this.currCommand;
-        } else if (cmt.equals(CommandType.C_PUSH) || cmt.equals(CommandType.C_POP)) {
+        } else if (this.commandSupportArg1()) {
             return this.currCommand.split(" ")[1];
         } else {
             throw new InvalidCommandException("arg1 not supported for this command type: " + cmt);
         }
+    }
+
+    private boolean commandSupportArg1() throws NullPointerException, InvalidCommandException {
+        CommandType cmt = this.commandType();
+        return cmt.equals(CommandType.C_PUSH) || cmt.equals(CommandType.C_POP) || cmt.equals(CommandType.C_LABEL) 
+        || cmt.equals(CommandType.C_GOTO) || cmt.equals(CommandType.C_IF) || cmt.equals(CommandType.C_FUNCTION)
+        || cmt.equals(CommandType.C_CALL);
+
     }
 
     int arg2() throws InvalidCommandException {

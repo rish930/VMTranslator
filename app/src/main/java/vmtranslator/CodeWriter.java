@@ -27,7 +27,7 @@ public class CodeWriter {
         // sub
         // neg
         // eq
-        // get
+        // gt
         // lt
         // and 
         // or
@@ -42,6 +42,18 @@ public class CodeWriter {
             case "neg":
                 this.writeNeg();
                 break;
+            case "eq":
+                this.writeComparator(command);
+            case "lt":
+                this.writeComparator(command);
+            case "gt":
+                this.writeComparator(command);
+            case "and":
+                this.writeAnd();
+            case "or":
+                this.writeOr();
+            case "not":
+                this.writeNot();
             default:
                 throw new InvalidCommandException("Command not supported for assembly conversion:" + command);
         }
@@ -92,6 +104,87 @@ public class CodeWriter {
         """;
         this.bw.write(assembly);
         
+    }
+
+    private void writeComparator(String command) throws IOException {
+        String assembly = 
+        """
+        // %s
+        @SP
+        M=M-1
+        A=M
+        D=M
+        A=A-1
+        D=D-M
+        @SP
+        M=M-1
+        @TRUE
+        D;%s
+        (FALSE)
+        @SP
+        A=M
+        M=0
+        @END
+        0;JMP
+        (TRUE)
+        @SP
+        A=M
+        M=-1
+        @END
+        0;JMP
+        (END)
+        @SP
+        M=M+1
+        (STOP)
+        @STOP
+        0;JMP
+        """;
+        HashMap<String, String> cjump = new HashMap<>();
+        cjump.put("eq", "JEQ");
+        cjump.put("lt", "JLT");
+        cjump.put("gt", "JGT");
+
+        assembly = String.format(assembly, command, cjump.get(command));
+        this.bw.write(assembly);
+    }
+
+    private void writeAnd() throws IOException {
+        String assembly = 
+        """
+        // and
+        @SP
+        M=M-1
+        A=M
+        D=M
+        A=A-1
+        M=D&M
+        """;
+        this.bw.write(assembly);
+    }
+
+    private void writeOr() throws IOException {
+        String assembly = 
+        """
+        // or
+        @SP
+        M=M-1
+        A=M
+        D=M
+        A=A-1
+        M=D|M
+        """;
+        this.bw.write(assembly);
+    }
+
+    private void writeNot() throws IOException {
+        String assembly = 
+        """
+        // not
+        @SP
+        A=M-1
+        M=!M
+        """;
+        this.bw.write(assembly);
     }
 
     void writePushPop(String command, String segment, int index) throws IOException, InvalidCommandException {

@@ -9,17 +9,32 @@ public class CodeWriter {
     /*
     * writes the assembly code that implements the parsed command
     */
-    BufferedWriter bw;
+    private String filename;
+    private BufferedWriter bw;
 
-    HashMap<String, String> segmentSymbol = new HashMap<>();
+    private HashMap<String, String> segmentSymbol = new HashMap<>();
 
     CodeWriter(String filename) throws IOException {
-        this.bw = new BufferedWriter(new FileWriter(filename));
+        this.filename = filename;
+        this.bw = new BufferedWriter(new FileWriter(this.filename));
         this.segmentSymbol.put("local", "LCL");
         this.segmentSymbol.put("argument", "ARG");
         this.segmentSymbol.put("this", "THIS");
         this.segmentSymbol.put("that", "THAT");
         this.segmentSymbol.put("temp", "TEMP");
+    }
+
+    void setFilename(String filename) throws IOException {
+        // to start translation of a new file
+        // called by VMTranslator
+        try {
+            this.close();
+        } catch (IOException e) {
+            System.out.println("Isse while closing buffered writer");
+            e.printStackTrace();
+        }
+        this.filename = filename;
+        this.bw = new BufferedWriter(new FileWriter(this.filename));
     }
 
     void writeArithmetic(String command) throws IOException, InvalidCommandException {
@@ -60,7 +75,7 @@ public class CodeWriter {
    
         
     }
-    private void writeAdd() throws IOException {
+    private void writeAdd() {
 
         String assembly = 
         """
@@ -73,10 +88,10 @@ public class CodeWriter {
         A=M-1
         M=D+M
         """;
-        this.bw.write(assembly);
+        this.write(assembly);
     }
 
-    private void writeSub() throws IOException {
+    private void writeSub() {
 
         String assembly = 
         """
@@ -89,11 +104,11 @@ public class CodeWriter {
         A=M-1
         M=M-D
         """;
-        this.bw.write(assembly);
+        this.write(assembly);
         
     }
 
-    private void writeNeg() throws IOException {
+    private void writeNeg() {
 
         String assembly = 
         """
@@ -102,11 +117,11 @@ public class CodeWriter {
         A=M-1
         M=-M
         """;
-        this.bw.write(assembly);
+        this.write(assembly);
         
     }
 
-    private void writeComparator(String command) throws IOException {
+    private void writeComparator(String command) {
         String assembly = 
         """
         // %s
@@ -145,10 +160,10 @@ public class CodeWriter {
         cjump.put("gt", "JGT");
 
         assembly = String.format(assembly, command, cjump.get(command));
-        this.bw.write(assembly);
+        this.write(assembly);
     }
 
-    private void writeAnd() throws IOException {
+    private void writeAnd() {
         String assembly = 
         """
         // and
@@ -159,10 +174,10 @@ public class CodeWriter {
         A=A-1
         M=D&M
         """;
-        this.bw.write(assembly);
+        this.write(assembly);
     }
 
-    private void writeOr() throws IOException {
+    private void writeOr() {
         String assembly = 
         """
         // or
@@ -173,10 +188,10 @@ public class CodeWriter {
         A=A-1
         M=D|M
         """;
-        this.bw.write(assembly);
+        this.write(assembly);
     }
 
-    private void writeNot() throws IOException {
+    private void writeNot() {
         String assembly = 
         """
         // not
@@ -184,7 +199,7 @@ public class CodeWriter {
         A=M-1
         M=!M
         """;
-        this.bw.write(assembly);
+        this.write(assembly);
     }
 
     void writePushPop(String command, String segment, int index) throws IOException, InvalidCommandException {
@@ -229,7 +244,7 @@ public class CodeWriter {
         }
     }
 
-    private void writePush1(String topComment,  String segmentSymbol, int index) throws IOException {
+    private void writePush1(String topComment,  String segmentSymbol, int index) {
         String assembly = 
         """
         // %s 
@@ -245,10 +260,10 @@ public class CodeWriter {
         M=M+1
         """;
         assembly = String.format(assembly, topComment, index, segmentSymbol);
-        this.bw.write(assembly);
+        this.write(assembly);
     }
 
-    private void writePushTemp(String topComment, int index) throws IOException {
+    private void writePushTemp(String topComment, int index) {
         String assembly = 
         """
         // %s
@@ -261,12 +276,12 @@ public class CodeWriter {
         M=M+1
         """;
         assembly = String.format(assembly, topComment, 5+index);
-        this.bw.write(assembly);
+        this.write(assembly);
         
         
     }
 
-    private void writePushConstant(String topComment,  int index) throws IOException {
+    private void writePushConstant(String topComment,  int index) {
         String assembly = 
         """
         // %s 
@@ -279,12 +294,12 @@ public class CodeWriter {
         M=M+1
         """;
         assembly = String.format(assembly, topComment, index);
-        this.bw.write(assembly);
+        this.write(assembly);
         
         
     }
     
-    private void writePop1(String topComment,  String segmentSymbol, int index) throws IOException {
+    private void writePop1(String topComment,  String segmentSymbol, int index) {
         String assembly = 
         """
         // %s
@@ -303,11 +318,11 @@ public class CodeWriter {
         M=D
         """;
         assembly = String.format(assembly, topComment, index, segmentSymbol);
-        this.bw.write(assembly);
+        this.write(assembly);
            
     }
 
-    private void writePopTemp(String topComment, int index) throws IOException {
+    private void writePopTemp(String topComment, int index) {
         String assembly = 
         """
         // %s
@@ -319,11 +334,58 @@ public class CodeWriter {
         M=D
         """;
         assembly = String.format(assembly, topComment, 5+index);
-        this.bw.write(assembly);
+        this.write(assembly);
         
     }
     
+    void writeLabel(String label) {
+        String assembly = 
+        """
+        // label
+        (%s)
+        """;
+        assembly = String.format(assembly, label);
+        this.write(assembly);
+
+    }
+
+    void writeGoto(String label) {
+        String assembly = 
+        """
+        // goto
+        @%s
+        0;JMP
+        """;
+        assembly = String.format(assembly, label);
+        this.write(assembly);
+    }
+
+    void writeIf(String label) {
+        // if true(i.e. -1) on stack then jump to label
+        String assembly = 
+        """
+        // if-goto
+        @SP
+        M=M-1
+        A=M
+        D=M
+        @%s
+        D+1;JMP
+        """;
+        assembly = String.format(assembly, label);
+        this.write(assembly);
+    }
+
     void close() throws IOException {
         this.bw.close();
+    }
+
+    private void write(String assembly) {
+        try {
+            this.bw.write(assembly);
+        } catch (IOException e) {
+            System.out.println("Could not write to file");
+            e.printStackTrace();
+        }
     }
 }

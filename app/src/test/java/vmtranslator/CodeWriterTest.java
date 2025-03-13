@@ -11,8 +11,8 @@ import org.junit.jupiter.api.Test;
 
 public class CodeWriterTest {
     @Test
-    void testWriteAssembly() throws IOException {
-        String filename = "test_asm.asm";
+    void testWriteAdd() throws IOException {
+        String filename = "test_add.asm";
         CodeWriter cw = new CodeWriter(filename);
         try {
             cw.writePushPop("push", "argument", 2);
@@ -65,4 +65,72 @@ public class CodeWriterTest {
         file.delete();
     }
     
+    @Test
+    void testWriteLabel() throws IOException {
+        // setup
+        String outFilename = "test_label.asm";
+        CodeWriter cw = new CodeWriter(outFilename);
+        String label = "myLabel";
+        cw.writeLabel(label);
+        cw.close();
+        String expected = 
+        """
+        // label
+        (myLabel)
+        """;
+        String actual = Files.readString(Paths.get(outFilename));
+        assertTrue(actual.equals(expected));
+
+        // teardown
+        File file = new File(outFilename);
+        file.delete();
+    }
+
+    @Test
+    void testWriteGoto() throws IOException {
+        // setup
+        String outFilename = "test_goto.asm";
+        CodeWriter cw = new CodeWriter(outFilename);
+        String label = "myLabel";
+        cw.writeGoto(label);
+        cw.close();
+        String expected = 
+        """
+        // goto
+        @myLabel
+        0;JMP
+        """;
+        String actual = Files.readString(Paths.get(outFilename));
+        assertTrue(actual.equals(expected));
+
+        // teardown
+        File file = new File(outFilename);
+        file.delete();
+    }
+
+    @Test
+    void testWriteIfGoto() throws IOException {
+        // setup
+        String outFilename = "test_ifgoto.asm";
+        CodeWriter cw = new CodeWriter(outFilename);
+        String label = "myLabel";
+        cw.writeIf(label);
+        cw.close();
+        String expected = 
+        """
+        // if-goto
+        @SP
+        M=M-1
+        A=M
+        D=M
+        @myLabel
+        D+1;JMP
+        """;
+        String actual = Files.readString(Paths.get(outFilename));
+        assertTrue(actual.equals(expected));
+
+        // teardown
+        File file = new File(outFilename);
+        file.delete();
+    }
 }

@@ -23,7 +23,7 @@ public class Parser {
 
     void advance() throws IOException {
         if (this.hasMoreCommands()) {
-            this.currCommand = this.br.readLine().trim().split("//")[0];
+            this.currCommand = this.br.readLine().trim().split("//")[0].trim();
             if (this.currCommand.equals("") || this.currCommand.startsWith("//")) {
                 this.advance();
             }
@@ -33,7 +33,10 @@ public class Parser {
     }
 
     CommandType commandType() throws InvalidCommandException, NullPointerException {
-        String command = this.currCommand.split(" ")[0];
+        if (this.currCommand==null) {
+            return CommandType.C_EMPTY;
+        }
+        String command = this.currCommand.split(" ")[0].trim();
         if (this.isCommandArithmetic(command)) {
             return CommandType.C_ARITHMETIC;
         } else if (this.isCommandMemoryAccess(command)) {
@@ -125,7 +128,7 @@ public class Parser {
                 || cmt.equals(CommandType.C_PUSH)
                 || cmt.equals(CommandType.C_FUNCTION)
                 || cmt.equals(CommandType.C_CALL)) {
-            return Integer.parseInt(this.currCommand.split(" ")[2]);
+            return Integer.parseInt(this.currCommand.split(" ")[2].trim());
         } else {
             throw new InvalidCommandException("CommandType:" + cmt.toString() + " does not have arg2");
         }

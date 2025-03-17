@@ -96,7 +96,7 @@ public class CodeWriterTest {
         cw.close();
         String expected = 
         """
-        // goto
+        // goto myLabel
         @myLabel
         0;JMP
         """;
@@ -118,13 +118,14 @@ public class CodeWriterTest {
         cw.close();
         String expected = 
         """
-        // if-goto
+        // if-goto myLabel
         @SP
         M=M-1
         A=M
         D=M
         @myLabel
-        D+1;JMP
+        D+1;JEQ
+        D;JGT
         """;
         String actual = Files.readString(Paths.get(outFilename));
         assertTrue(actual.equals(expected));

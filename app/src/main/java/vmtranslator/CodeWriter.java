@@ -9,14 +9,17 @@ public class CodeWriter {
     /*
     * writes the assembly code that implements the parsed command
     */
-    private String filename;
+    private String asmFilename;
     private BufferedWriter bw;
+    private String vmfilename;
+    private int callCount;
+    
 
     private HashMap<String, String> segmentSymbol = new HashMap<>();
 
     CodeWriter(String filename) throws IOException {
-        this.filename = filename;
-        this.bw = new BufferedWriter(new FileWriter(this.filename));
+        this.asmFilename = filename;
+        this.bw = new BufferedWriter(new FileWriter(this.asmFilename));
         this.segmentSymbol.put("local", "LCL");
         this.segmentSymbol.put("argument", "ARG");
         this.segmentSymbol.put("this", "THIS");
@@ -24,17 +27,14 @@ public class CodeWriter {
         this.segmentSymbol.put("temp", "TEMP");
     }
 
-    void setFilename(String filename) throws IOException {
-        // to start translation of a new file
-        // called by VMTranslator
-        try {
-            this.close();
-        } catch (IOException e) {
-            System.out.println("Isse while closing buffered writer");
-            e.printStackTrace();
-        }
-        this.filename = filename;
-        this.bw = new BufferedWriter(new FileWriter(this.filename));
+    void close() throws IOException {
+        this.bw.close();
+    }
+
+    void setVmFilename(String filename) throws IOException {
+        // informs that translation of new vm file has started
+        this.vmfilename = filename;
+        
     }
 
     void writeArithmetic(String command) throws IOException, InvalidCommandException {
@@ -59,16 +59,22 @@ public class CodeWriter {
                 break;
             case "eq":
                 this.writeComparator(command);
+                break;
             case "lt":
                 this.writeComparator(command);
+                break;
             case "gt":
                 this.writeComparator(command);
+                break;
             case "and":
                 this.writeAnd();
+                break;
             case "or":
                 this.writeOr();
+                break;
             case "not":
                 this.writeNot();
+                break;
             default:
                 throw new InvalidCommandException("Command not supported for assembly conversion:" + command);
         }
@@ -129,10 +135,10 @@ public class CodeWriter {
         M=M-1
         A=M
         D=M
-        A=A-1
-        D=D-M
         @SP
         M=M-1
+        A=M
+        D=M-D
         @TRUE
         D;%s
         (FALSE)
@@ -145,14 +151,9 @@ public class CodeWriter {
         @SP
         A=M
         M=-1
-        @END
-        0;JMP
         (END)
         @SP
         M=M+1
-        (STOP)
-        @STOP
-        0;JMP
         """;
         HashMap<String, String> cjump = new HashMap<>();
         cjump.put("eq", "JEQ");
@@ -226,7 +227,10 @@ public class CodeWriter {
             } 
             else if (segment.equals("constant")) {
                 this.writePushConstant(topComment, index);
-            } else {
+            } else if (segment.equals("pointer") && index>=0 && index <=1) {
+                this.writePushPointer(index);
+            }
+            else {
                 throw new InvalidCommandException("Argument not supported to convert to assembly");
             }
         } else if (command.equals("pop")) {
@@ -238,7 +242,10 @@ public class CodeWriter {
                 }
             else if (segment.equals("temp")) {
                 this.writePopTemp(topComment, index);
-            } else {
+            } else if (segment.equals("pointer") && index>=0 && index <=1) {
+                this.writePopPointer(index);
+            }
+            else {
                 throw new InvalidCommandException("Argument not supported to convert to assembly");
             }
         }
@@ -338,6 +345,49 @@ public class CodeWriter {
         
     }
     
+    private void writePushPointer(int index) {
+        String assembly = 
+        """
+        // push pointer %d
+        @%s // THIS or THAT
+        D=M
+        @SP
+        A=M
+        M=D
+        @SP
+        M=M+1
+        """;
+        String segment;
+        if (index==0) {
+            segment = "THIS";
+        } else {
+            segment = "THAT";
+        }
+        assembly = String.format(assembly, index, segment);
+        this.write(assembly);
+    }
+
+    private void writePopPointer(int index) {
+        String assembly = 
+        """
+        // pop pointer %d
+        @SP
+        M=M-1
+        A=M
+        D=M
+        @%s // THIS or THAT
+        M=D
+        """;
+        String segment;
+        if (index==0) {
+            segment = "THIS";
+        } else {
+            segment = "THAT";
+        }
+        assembly = String.format(assembly, index, segment);
+        this.write(assembly);
+    }
+    
     void writeLabel(String label) {
         String assembly = 
         """
@@ -352,11 +402,11 @@ public class CodeWriter {
     void writeGoto(String label) {
         String assembly = 
         """
-        // goto
+        // goto %s
         @%s
         0;JMP
         """;
-        assembly = String.format(assembly, label);
+        assembly = String.format(assembly, label, label);
         this.write(assembly);
     }
 
@@ -364,24 +414,156 @@ public class CodeWriter {
         // if true(i.e. -1) on stack then jump to label
         String assembly = 
         """
-        // if-goto
+        // if-goto %s
         @SP
         M=M-1
         A=M
         D=M
         @%s
-        D+1;JMP
+        D+1;JEQ
+        D;JGT
         """;
-        assembly = String.format(assembly, label);
+        assembly = String.format(assembly, label, label);
         this.write(assembly);
     }
 
-    void close() throws IOException {
-        this.bw.close();
+    void writeFunction(String functionName, int nVars) throws IOException, InvalidCommandException {
+        // make a label
+        // repeat nVars times to set local variables
+            // push constant 0
+        this.callCount = 1;
+        String label = this.vmfilename + "." + functionName;
+        this.writeLabel(label);
+        for(int i = 0; i<nVars; i++) {
+            this.writePushPop("push", "constant", 0);
+        }
+    }
+
+    void writeCall(String functionName, int nArgs) {
+        String assembly = "";
+        // top comment
+        String topComment = "// call " + functionName + " " + Integer.toString(nArgs);
+        assembly = assembly + topComment;
+        // return address
+        String retAddressLabel = this.vmfilename + "." + functionName + "$ret." + this.callCount;
+        this.callCount +=1;
+        String saveReturnAddress = 
+        """
+        // save returnAddrLabel
+        @%s
+        D=A
+        @SP
+        A=M
+        M=D
+        @SP
+        M=M+1
+        """;
+        assembly = assembly + String.format(saveReturnAddress, retAddressLabel);
+
+        String saveCallerSegment = 
+        """
+        // save caller memory segment
+        @%s
+        D=M
+        @SP
+        A=M
+        M=D
+        @SP
+        M=M+1
+        """;
+
+        assembly = assembly + String.format(saveCallerSegment, "LCL");
+        assembly = assembly + String.format(saveCallerSegment, "ARG");
+        assembly = assembly + String.format(saveCallerSegment, "THIS");
+        assembly = assembly + String.format(saveCallerSegment, "THAT");
+
+        String calleeArg = 
+        """
+        // set callee ARG
+        @5
+        D=A
+        @%d
+        D=D+A
+        @SP
+        D=M-D
+        @ARG
+        M=D
+        """;
+        assembly = assembly + calleeArg;
+
+        String calleeLCL = 
+        """
+        // set callee LCL
+        @SP
+        D=M
+        @LCL
+        M=D
+        """;
+
+        assembly = assembly + calleeLCL;
+        this.write(assembly);
+        this.writeGoto(retAddressLabel);
+        this.writeLabel(retAddressLabel);
+    }
+
+    void writeReturn() {
+        String assembly = "";
+        String topComment = "// return";
+        assembly = assembly + topComment;
+
+        String pushResult = 
+        """
+        // push result
+        @SP
+        A=M-1
+        D=M
+        @ARG
+        A=M
+        M=D
+        """;
+        assembly = assembly + pushResult;
+        String resetSP =
+        """
+        // reset SP to ARG+1
+        @ARG
+        D=M+1
+        @SP
+        M=D
+        """;
+        assembly = assembly + resetSP;
+
+        String resetMemorySegment = 
+        """
+        // reset memory segments for caller
+        @%d
+        D=A
+        @LCL
+        A=M-D
+        D=M
+        @%s
+        M=D
+        """;
+        assembly = assembly + String.format(resetMemorySegment, 1, "THAT");
+        assembly = assembly + String.format(resetMemorySegment, 2, "THIS");
+        assembly = assembly + String.format(resetMemorySegment, 3, "ARG");
+        String returnAddress = "returnAddress";
+        assembly = assembly + String.format(resetMemorySegment, 5, returnAddress);
+        assembly = assembly + String.format(resetMemorySegment, 4, "LCL");
+        
+        String goToReturnAddress = 
+        """
+        // jump to returnAddress
+        @%s
+        A=M
+        0;JMP
+        """;
+        assembly = assembly + String.format(goToReturnAddress, returnAddress);
+        this.write(assembly);
     }
 
     private void write(String assembly) {
         try {
+            System.out.println("Writing..." + assembly);
             this.bw.write(assembly);
         } catch (IOException e) {
             System.out.println("Could not write to file");

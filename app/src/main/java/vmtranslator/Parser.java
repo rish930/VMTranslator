@@ -33,7 +33,7 @@ public class Parser {
     }
 
     CommandType commandType() throws InvalidCommandException, NullPointerException {
-        if (this.currCommand==null) {
+        if (this.currCommand == null) {
             return CommandType.C_EMPTY;
         }
         String command = this.currCommand.split(" ")[0].trim();
@@ -114,9 +114,9 @@ public class Parser {
 
     private boolean commandSupportArg1() throws NullPointerException, InvalidCommandException {
         CommandType cmt = this.commandType();
-        return cmt.equals(CommandType.C_PUSH) || cmt.equals(CommandType.C_POP) || cmt.equals(CommandType.C_LABEL) 
-        || cmt.equals(CommandType.C_GOTO) || cmt.equals(CommandType.C_IF) || cmt.equals(CommandType.C_FUNCTION)
-        || cmt.equals(CommandType.C_CALL);
+        return cmt.equals(CommandType.C_PUSH) || cmt.equals(CommandType.C_POP) || cmt.equals(CommandType.C_LABEL)
+                || cmt.equals(CommandType.C_GOTO) || cmt.equals(CommandType.C_IF) || cmt.equals(CommandType.C_FUNCTION)
+                || cmt.equals(CommandType.C_CALL);
 
     }
 

@@ -10,20 +10,20 @@ import java.io.IOException;
 public class Main {
 
     public static void main(String[] args) throws IOException, InvalidCommandException {
-        if (args.length==0) {
+        if (args.length == 0) {
             System.out.println("Please provide a file or directory path as argument");
             return;
         }
         String path = args[0];
         File source = new File(path);
-        
+
         if (!source.exists()) {
             System.out.println("The provided path does not exist.");
             return;
         }
-        
+
         if (source.isFile() && isAllowedFile(source)) {
-            String outputFilename =  path.substring(0, path.length()-3) + ".asm";
+            String outputFilename = path.substring(0, path.length() - 3) + ".asm";
             CodeWriter cw = new CodeWriter(outputFilename);
             processFile(source, cw);
             cw.close();
@@ -32,9 +32,9 @@ public class Main {
             CodeWriter cw = new CodeWriter(outputFilename);
             cw.writeInit();
             File[] files = source.listFiles();
-            if (files!=null) {
-                for(File file: files) {
-                    if (isAllowedFile(file)){
+            if (files != null) {
+                for (File file : files) {
+                    if (isAllowedFile(file)) {
                         processFile(file, cw);
                     }
                 }
@@ -47,7 +47,8 @@ public class Main {
         }
     }
 
-    private static void translate(CodeWriter cw, Parser parser) throws NullPointerException, IOException, InvalidCommandException {
+    private static void translate(CodeWriter cw, Parser parser)
+            throws NullPointerException, IOException, InvalidCommandException {
         try {
             while (parser.hasMoreCommands()) {
                 parser.advance();
@@ -103,7 +104,7 @@ public class Main {
 
     private static void processFile(File source, CodeWriter cw) {
         String sourceFileName = source.getName();
-        String name = sourceFileName.substring(0, sourceFileName.length()-3);
+        String name = sourceFileName.substring(0, sourceFileName.length() - 3);
         try {
             cw.setVmFilename(name);
             Parser parser = new Parser(source);

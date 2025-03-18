@@ -9,3 +9,5 @@ build
 *.asm
 *.vm
 *.DS_Store
+*.cmp
+*.tst

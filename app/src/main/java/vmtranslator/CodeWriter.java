@@ -13,6 +13,7 @@ public class CodeWriter {
     private BufferedWriter bw;
     private String vmfilename;
     private int callCount;
+    private String currFunction;
     
 
     private HashMap<String, String> segmentSymbol = new HashMap<>();
@@ -25,6 +26,9 @@ public class CodeWriter {
         this.segmentSymbol.put("this", "THIS");
         this.segmentSymbol.put("that", "THAT");
         this.segmentSymbol.put("temp", "TEMP");
+        this.vmfilename="";
+        this.currFunction="";
+        this.callCount=0;
     }
 
     void close() throws IOException {
@@ -36,7 +40,20 @@ public class CodeWriter {
         this.vmfilename = filename;
         
     }
-
+    void writeInit() {
+        this.vmfilename = "Sys";
+        this.currFunction = "BootstrapCode";
+        String assembly = 
+        """
+        // setup
+        @256
+        D=A
+        @SP
+        M=D
+        """;
+        this.write(assembly);
+        this.writeCall("Sys.init", 0);
+    }
     void writeArithmetic(String command) throws IOException, InvalidCommandException {
         // add
         // sub
@@ -139,19 +156,19 @@ public class CodeWriter {
         M=M-1
         A=M
         D=M-D
-        @TRUE
-        D;%s
-        (FALSE)
+        @%s //jump to TRUE
+        D;%s // cjump
+        (%s) // continue false
         @SP
         A=M
         M=0
-        @END
+        @%s // jump to END
         0;JMP
-        (TRUE)
+        (%s) // true branch
         @SP
         A=M
         M=-1
-        (END)
+        (%s) // END
         @SP
         M=M+1
         """;
@@ -160,7 +177,12 @@ public class CodeWriter {
         cjump.put("lt", "JLT");
         cjump.put("gt", "JGT");
 
-        assembly = String.format(assembly, command, cjump.get(command));
+        String prefix="";
+        if (this.currFunction!=""){
+            prefix = this.currFunction+"$";
+        }
+        assembly = String.format(assembly, command, prefix+"TRUE", cjump.get(command), prefix+"FALSE",
+            prefix+"END", prefix+"TRUE", prefix+"END");
         this.write(assembly);
     }
 
@@ -389,6 +411,14 @@ public class CodeWriter {
     }
     
     void writeLabel(String label) {
+        if (currFunction!=""){
+            this.writeLabelOnly(this.currFunction + "$"+label);
+        } else {
+            this.writeLabelOnly(label);
+        }
+    }
+
+    void writeLabelOnly(String label) {
         String assembly = 
         """
         // label
@@ -396,10 +426,17 @@ public class CodeWriter {
         """;
         assembly = String.format(assembly, label);
         this.write(assembly);
-
     }
 
     void writeGoto(String label) {
+        if (currFunction!=""){
+            this.writeGotoOnly(this.currFunction+"$"+label);
+        } else {
+            this.writeGotoOnly(label);
+        }
+    }
+
+    private void writeGotoOnly(String label) {
         String assembly = 
         """
         // goto %s
@@ -423,7 +460,11 @@ public class CodeWriter {
         D+1;JEQ
         D;JGT
         """;
-        assembly = String.format(assembly, label, label);
+        if (this.currFunction==""){
+            assembly = String.format(assembly, label, label);
+        } else {
+            assembly = String.format(assembly, this.currFunction+"$"+label, this.currFunction+"$"+label);
+        }
         this.write(assembly);
     }
 
@@ -432,8 +473,8 @@ public class CodeWriter {
         // repeat nVars times to set local variables
             // push constant 0
         this.callCount = 1;
-        String label = this.vmfilename + "." + functionName;
-        this.writeLabel(label);
+        this.currFunction = functionName;
+        this.writeLabelOnly(this.currFunction);
         for(int i = 0; i<nVars; i++) {
             this.writePushPop("push", "constant", 0);
         }
@@ -445,8 +486,7 @@ public class CodeWriter {
         String topComment = "// call " + functionName + " " + Integer.toString(nArgs);
         assembly = assembly + topComment;
         // return address
-        String retAddressLabel = this.vmfilename + "." + functionName + "$ret." + this.callCount;
-        this.callCount +=1;
+        String retAddressLabel = this.currFunction + "$ret." + this.callCount;
         String saveReturnAddress = 
         """
         // save returnAddrLabel
@@ -489,7 +529,7 @@ public class CodeWriter {
         @ARG
         M=D
         """;
-        assembly = assembly + calleeArg;
+        assembly = assembly + String.format(calleeArg, nArgs);
 
         String calleeLCL = 
         """
@@ -502,14 +542,29 @@ public class CodeWriter {
 
         assembly = assembly + calleeLCL;
         this.write(assembly);
-        this.writeGoto(retAddressLabel);
-        this.writeLabel(retAddressLabel);
+        this.writeGotoOnly(functionName);
+        this.writeLabel("ret." + this.callCount);
+        this.callCount +=1;
     }
 
     void writeReturn() {
         String assembly = "";
         String topComment = "// return";
         assembly = assembly + topComment;
+
+        String resetMemorySegment = 
+        """
+        // reset memory segments for caller
+        @%d
+        D=A
+        @LCL
+        A=M-D
+        D=M
+        @%s
+        M=D
+        """;
+        String returnAddress = "returnAddress";
+        assembly = assembly + String.format(resetMemorySegment, 5, returnAddress);
 
         String pushResult = 
         """
@@ -531,23 +586,10 @@ public class CodeWriter {
         M=D
         """;
         assembly = assembly + resetSP;
-
-        String resetMemorySegment = 
-        """
-        // reset memory segments for caller
-        @%d
-        D=A
-        @LCL
-        A=M-D
-        D=M
-        @%s
-        M=D
-        """;
+        
         assembly = assembly + String.format(resetMemorySegment, 1, "THAT");
         assembly = assembly + String.format(resetMemorySegment, 2, "THIS");
         assembly = assembly + String.format(resetMemorySegment, 3, "ARG");
-        String returnAddress = "returnAddress";
-        assembly = assembly + String.format(resetMemorySegment, 5, returnAddress);
         assembly = assembly + String.format(resetMemorySegment, 4, "LCL");
         
         String goToReturnAddress = 

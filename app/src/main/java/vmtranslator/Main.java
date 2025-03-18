@@ -10,23 +10,44 @@ import java.io.IOException;
 public class Main {
 
     public static void main(String[] args) throws IOException, InvalidCommandException {
-        String filename = "SimpleFunction2";
-        String ext = ".vm";
-        String filedir = "./app/src/main/resources/";
-        String file = filedir+ filename + ext;
-        File pathname = new File(file);
-        String outputFilename =  filedir + filename + ".asm";
-        CodeWriter cw = new CodeWriter(outputFilename);
+        if (args.length==0) {
+            System.out.println("Please provide a file or directory path as argument");
+            return;
+        }
+        String path = args[0];
+        File source = new File(path);
+        
+        if (!source.exists()) {
+            System.out.println("The provided path does not exist.");
+            return;
+        }
+        
+        if (source.isFile() && isAllowedFile(source)) {
+            String outputFilename =  path.substring(0, path.length()-3) + ".asm";
+            CodeWriter cw = new CodeWriter(outputFilename);
+            processFile(source, cw);
+            cw.close();
+        } else if (source.isDirectory()) {
+            String outputFilename = path + ".asm";
+            CodeWriter cw = new CodeWriter(outputFilename);
+            cw.writeInit();
+            File[] files = source.listFiles();
+            if (files!=null) {
+                for(File file: files) {
+                    if (isAllowedFile(file)){
+                        processFile(file, cw);
+                    }
+                }
+            }
+            cw.close();
 
-        // TODO
-        // walk given directory for .vm files
-        // for each vm file
-            // create a new parser
-            // set vm filename for codewriter
-            // parse and write assembly code
-        // TODO How to know which file to parse first? Does it matter?
-        Parser parser = new Parser(pathname);
-        cw.setVmFilename(filename);
+        } else {
+            System.out.println("Unsupported input. Please provide a valid file or directory");
+            return;
+        }
+    }
+
+    private static void translate(CodeWriter cw, Parser parser) throws NullPointerException, IOException, InvalidCommandException {
         try {
             while (parser.hasMoreCommands()) {
                 parser.advance();
@@ -63,13 +84,33 @@ public class Main {
                 }
             }
             parser.close();
-            cw.close();
         } catch (FileNotFoundException fne) {
             System.out.print("File not exists");
             fne.printStackTrace();
         } finally {
             parser.close();
-            cw.close();
+        }
+    }
+
+    private static boolean isAllowedFile(File file) {
+        String name = file.getName().toLowerCase();
+        if (name.endsWith(".vm")) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    private static void processFile(File source, CodeWriter cw) {
+        String sourceFileName = source.getName();
+        String name = sourceFileName.substring(0, sourceFileName.length()-3);
+        try {
+            cw.setVmFilename(name);
+            Parser parser = new Parser(source);
+            translate(cw, parser);
+        } catch (Exception e) {
+            System.out.println("Exception occured");
+            e.printStackTrace();
         }
     }
 }

@@ -242,6 +242,8 @@ public class CodeWriter {
                 this.writePushConstant(topComment, index);
             } else if (segment.equals("pointer") && index >= 0 && index <= 1) {
                 this.writePushPointer(index);
+            } else if (segment.equals("static")) {
+                this.writePushStatic(index);
             } else {
                 throw new InvalidCommandException("Argument not supported to convert to assembly");
             }
@@ -255,6 +257,8 @@ public class CodeWriter {
                 this.writePopTemp(topComment, index);
             } else if (segment.equals("pointer") && index >= 0 && index <= 1) {
                 this.writePopPointer(index);
+            } else if (segment.equals("static")) {
+                this.writePopStatic(index);
             } else {
                 throw new InvalidCommandException("Argument not supported to convert to assembly");
             }
@@ -389,6 +393,34 @@ public class CodeWriter {
         this.write(assembly);
     }
 
+    private void writePushStatic(int index) {
+        String assembly = """
+                // push static %d
+                @%s //xxx.i
+                D=M
+                @SP
+                A=M
+                M=D
+                @SP
+                M=M+1
+                """;
+        assembly = String.format(assembly, index, this.vmfilename+"."+Integer.toString(index));
+        this.write(assembly);
+    }
+
+    private void writePopStatic(int index) {
+        String assembly = """
+                // pop static %d
+                @SP
+                M=M-1
+                A=M
+                D=M
+                @%s // xxx.i
+                M=D
+                """;
+        assembly = String.format(assembly, index, this.vmfilename+"."+Integer.toString(index));
+        this.write(assembly);
+    }
     void writeLabel(String label) {
         if (currFunction != "") {
             this.writeLabelOnly(this.currFunction + "$" + label);
